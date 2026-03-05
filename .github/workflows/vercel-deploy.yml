@@ -13,19 +13,19 @@ jobs:
       pull-requests: read
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm"
+          cache: npm
 
       - name: Install Vercel CLI
-        run: npm i -g vercel
+        run: npm install -g vercel
 
-      # (Optional but nice) pulls env vars from Vercel into the runner
+      # Pull Vercel environment variables for PRs
       - name: Pull Vercel env (preview)
         if: github.event_name == 'pull_request'
         run: vercel env pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
@@ -33,6 +33,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+      # Deploy Preview for PRs
       - name: Deploy Preview
         if: github.event_name == 'pull_request'
         run: vercel deploy --yes --token=${{ secrets.VERCEL_TOKEN }}
@@ -40,6 +41,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+      # Deploy Production for pushes to main
       - name: Deploy Production
         if: github.event_name == 'push'
         run: vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
