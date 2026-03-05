@@ -1,46 +1,49 @@
-name: Deploy to Vercel
+name: Vercel Preview Deployment
+
+env:
+    VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+    VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
 on:
-  pull_request:
-  push:
-    branches: ["main"]
+    push:
+        branches-ignore:
+            - main
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    Test:
+        runs-on: ubuntu-latest
+        steps:
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
+            - uses: actions/checkout@v4
 
-      - name: Install Vercel CLI
-        run: npm i -g vercel
+            - uses: actions/setup-node@v4
+              with:
+                node-version-file: '.nvmrc'
 
-      # Link/pull project settings so env pull works in CI
-      - name: Vercel Pull (link project)
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+            - run: npm ci
 
-      # Pull env vars only for PRs from same repo (not forks)
-      - name: Pull Vercel env (preview)
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        run: vercel env pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+            - run: npm run test:prod
 
-      - name: Deploy Preview
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        run: vercel deploy --yes --token=${{ secrets.VERCEL_TOKEN }}
+    Deploy-Preview:
+        needs: [Test]
+        runs-on: ubuntu-latest
+        steps:
 
-      - name: Deploy Production
-        if: github.event_name == 'push'
-        run: vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                node-version-file: '.nvmrc'
+
+            - name: Install Vercel CLI
+              run: npm install --global vercel
+
+            - name: Pull Vercel Environment Information
+              run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+            - name: Build Project Artifacts
+              run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+            - name: Deploy Project Artifacts
+              run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
